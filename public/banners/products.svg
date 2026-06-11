@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="420" viewBox="0 0 1600 420">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0a0a0a"/>
+      <stop offset="0.5" stop-color="#08131f"/>
+      <stop offset="1" stop-color="#0a0a0a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#22c55e" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0.35"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="420" fill="url(#bg)"/>
+  <rect width="1600" height="420" fill="url(#grid)"/>
+
+  <path d="M-120 290 C 210 120, 520 420, 860 210 S 1460 120, 1740 70" fill="none" stroke="url(#accent)" stroke-width="6" stroke-opacity="0.9"/>
+  <rect x="1180" y="90" width="320" height="240" rx="28" fill="#22d3ee" opacity="0.08"/>
+  <rect x="1120" y="130" width="260" height="200" rx="24" fill="#22c55e" opacity="0.06"/>
+
+  <g font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">
+    <text x="92" y="170" fill="#e5e7eb" font-size="18" font-weight="600" letter-spacing="4" opacity="0.9">EAGLEEYE TECH</text>
+    <text x="92" y="250" fill="#ffffff" font-size="64" font-weight="800" letter-spacing="1">PRODUCTS</text>
+    <text x="92" y="292" fill="#cbd5e1" font-size="18" opacity="0.9">Specifications · Filters · Stock status</text>
+  </g>
+</svg>
