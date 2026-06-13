@@ -42,6 +42,7 @@ function getI18nText(obj: Record<string, string> | null | undefined, key: string
 export default function Home() {
   const { pickI18nText } = useI18n();
   const [banners, setBanners] = useState<BannerRow[]>([]);
+  const [bannerLoaded, setBannerLoaded] = useState(!supabaseEnabled);
   const [sloganBlock, setSloganBlock] = useState<PageSnippetRow | null>(null);
   const [deliveryBlock, setDeliveryBlock] = useState<PageSnippetRow | null>(null);
   const [homeSettings, setHomeSettings] = useState<HomeSettingsRow | null>(null);
@@ -49,6 +50,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!supabaseEnabled) {
+      setBannerLoaded(true);
       const local = (products ?? [])
         .slice(0, 4)
         .map((p) => ({ slug: p.id, name: p.name, imageUrl: p.images[0]?.url ?? "" }))
@@ -73,6 +75,8 @@ export default function Home() {
         }
       } catch {
         setBanners([]);
+      } finally {
+        setBannerLoaded(true);
       }
 
       try {
@@ -132,12 +136,12 @@ export default function Home() {
   }, [pickI18nText]);
 
   const heroBanner = banners[0] ?? null;
-  const heroImageUrl = heroBanner?.image_url?.toString().trim() || "/banner-industrial-hud.svg";
+  const heroImageUrl = heroBanner?.image_url?.toString().trim() || "";
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-16">
       <div className="space-y-14">
-        {supabaseEnabled ? (
+        {supabaseEnabled && bannerLoaded && heroImageUrl ? (
           <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50">
             <div className="relative aspect-[21/9]">
               {heroBanner?.link_url ? (
