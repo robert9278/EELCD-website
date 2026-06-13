@@ -273,7 +273,7 @@ export default function Home() {
               return (
                 <Link
                   key={p.slug}
-                  to={`/inquiry?product=${encodeURIComponent(p.slug)}`}
+                  to={`/products/${encodeURIComponent(p.slug)}`}
                   className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50"
                 >
                   <img src={p.imageUrl} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]" loading="lazy" />
