@@ -94,6 +94,7 @@ const fallbackLuminanceOptions = [
 ] as const;
 
 const fallbackTempOptions = ["< -30~80°C", "≥ -30~80°C"] as const;
+const PRODUCTS_PER_PAGE = 9;
 
 type ProductRow = {
   id: string;
@@ -246,6 +247,21 @@ function Chip({
   );
 }
 
+function buildPageItems(totalPages: number, currentPage: number) {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+  const items: Array<number | string> = [1];
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  if (start > 2) items.push("ellipsis-start");
+  for (let page = start; page <= end; page += 1) items.push(page);
+  if (end < totalPages - 1) items.push("ellipsis-end");
+
+  items.push(totalPages);
+  return items;
+}
+
 export default function Products() {
   const [params, setParams] = useSearchParams();
   const rawCategory = (params.get("category") ?? "").trim().toUpperCase();
@@ -257,6 +273,8 @@ export default function Products() {
   const fLcdType = (params.get("lcdType") ?? "").trim();
   const fLuminance = (params.get("luminance") ?? "").trim();
   const fTemp = (params.get("temp") ?? "").trim();
+  const rawPage = Number.parseInt((params.get("page") ?? "1").trim(), 10);
+  const currentPage = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
 
   const [remote, setRemote] = useState<ProductWithRelations[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -278,6 +296,14 @@ export default function Products() {
     const val = v.trim();
     if (val) next.set(k, val);
     else next.delete(k);
+    next.delete("page");
+    setParams(next);
+  }
+
+  function setPage(page: number) {
+    const next = new URLSearchParams(params);
+    if (page <= 1) next.delete("page");
+    else next.set("page", String(page));
     setParams(next);
   }
 
@@ -396,7 +422,6 @@ export default function Products() {
         }
 
         sp.set("order", isNewView ? "created_at.desc" : "sort_order.asc,created_at.desc");
-        if (isNewView) sp.set("limit", "12");
         const query = `?${sp.toString()}`;
 
         const { data } = await supabase.rest<ProductWithRelations[]>("products", query);
@@ -423,10 +448,10 @@ export default function Products() {
     const typed = fLcdType ? resolved.filter((p) => normalizeText(p.specLcdType ?? "").includes(normalizeText(fLcdType))) : resolved;
     const lumed = fLuminance ? typed.filter((p) => normalizeText(p.specLuminance ?? "").includes(normalizeText(fLuminance))) : typed;
     const temped = fTemp ? lumed.filter((p) => normalizeText(p.specOperatingTemp ?? "").includes(normalizeText(fTemp))) : lumed;
-    return isNewView ? temped.slice(0, 12) : temped;
+    return temped;
   }, [activeCategory, fLcdType, fLuminance, fResolution, fSize, fTemp, isNewView]);
 
-  const items: ProductCard[] = remote
+  const allItems: ProductCard[] = remote
     ? remote.map((p) => {
         const media = (p.product_media ?? []).filter((m) => m.kind === "image");
         media.sort((a, b) => (a.is_primary === b.is_primary ? a.sort_order - b.sort_order : a.is_primary ? -1 : 1));
@@ -462,6 +487,19 @@ export default function Products() {
         videoUrl: p.videoUrl ?? "",
         attachments: p.attachments ?? [],
       }));
+
+  const totalPages = Math.max(1, Math.ceil(allItems.length / PRODUCTS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginationItems = buildPageItems(totalPages, safePage);
+  const items = allItems.slice((safePage - 1) * PRODUCTS_PER_PAGE, safePage * PRODUCTS_PER_PAGE);
+
+  useEffect(() => {
+    if (safePage === currentPage) return;
+    const next = new URLSearchParams(params);
+    if (safePage <= 1) next.delete("page");
+    else next.set("page", String(safePage));
+    setParams(next, { replace: true });
+  }, [currentPage, params, safePage, setParams]);
 
   return (
     <div>
@@ -636,6 +674,60 @@ export default function Products() {
             </div>
           ))}
         </div>
+
+        {totalPages > 1 ? (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage(safePage - 1)}
+              disabled={safePage <= 1}
+              className={classNames(
+                "inline-flex min-w-10 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition-colors",
+                safePage <= 1
+                  ? "cursor-not-allowed border-zinc-200 text-zinc-400"
+                  : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+              )}
+            >
+              Prev
+            </button>
+
+            {paginationItems.map((item) =>
+              typeof item === "number" ? (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setPage(item)}
+                  className={classNames(
+                    "inline-flex min-w-10 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition-colors",
+                    item === safePage
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                  )}
+                >
+                  {item}
+                </button>
+              ) : (
+                <span key={item} className="inline-flex min-w-10 items-center justify-center px-1 text-sm text-zinc-400">
+                  ...
+                </span>
+              )
+            )}
+
+            <button
+              type="button"
+              onClick={() => setPage(safePage + 1)}
+              disabled={safePage >= totalPages}
+              className={classNames(
+                "inline-flex min-w-10 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition-colors",
+                safePage >= totalPages
+                  ? "cursor-not-allowed border-zinc-200 text-zinc-400"
+                  : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+              )}
+            >
+              Next
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
