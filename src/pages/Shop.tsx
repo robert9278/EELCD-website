@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import PageBanner from "@/components/PageBanner";
 import { supabase, supabaseEnabled } from "@/lib/supabaseClient";
@@ -30,11 +30,35 @@ type ProductMediaRow = {
 
 type ProductWithRelations = ProductRow & { product_media?: ProductMediaRow[] };
 
+const SHOP_PRODUCTS_PER_PAGE = 9;
+
+function classNames(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
+}
+
+function buildPageItems(totalPages: number, currentPage: number) {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+  const items: Array<number | string> = [1];
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  if (start > 2) items.push("ellipsis-start");
+  for (let page = start; page <= end; page += 1) items.push(page);
+  if (end < totalPages - 1) items.push("ellipsis-end");
+
+  items.push(totalPages);
+  return items;
+}
+
 export default function Shop() {
+  const [params, setParams] = useSearchParams();
   const [items, setItems] = useState<ProductWithRelations[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cartCount, setCartCount] = useState(() => loadCart().reduce((s, i) => s + (i.quantity || 0), 0));
+  const rawPage = Number.parseInt((params.get("page") ?? "1").trim(), 10);
+  const currentPage = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
 
   useEffect(() => {
     if (!supabaseEnabled) return;
@@ -69,6 +93,26 @@ export default function Shop() {
     });
   }, [items]);
 
+  const totalPages = Math.max(1, Math.ceil(cards.length / SHOP_PRODUCTS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageItems = buildPageItems(totalPages, safePage);
+  const visibleCards = cards.slice((safePage - 1) * SHOP_PRODUCTS_PER_PAGE, safePage * SHOP_PRODUCTS_PER_PAGE);
+
+  function setPage(page: number) {
+    const next = new URLSearchParams(params);
+    if (page <= 1) next.delete("page");
+    else next.set("page", String(page));
+    setParams(next);
+  }
+
+  useEffect(() => {
+    if (safePage === currentPage) return;
+    const next = new URLSearchParams(params);
+    if (safePage <= 1) next.delete("page");
+    else next.set("page", String(safePage));
+    setParams(next, { replace: true });
+  }, [currentPage, params, safePage, setParams]);
+
   return (
     <div>
       <PageBanner title="Shop" subtitle="Browse products, add to cart, and place orders." pageKey="shop" />
@@ -87,43 +131,99 @@ export default function Shop() {
         {error ? <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {cards.map((p) => (
-            <div key={p.id} className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+          {visibleCards.map((p) => (
+            <div key={p.id} className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white">
               <Link to={`/products/${p.slug}`} className="block">
                 <div className="aspect-[4/3] bg-zinc-50">
                   {p.image ? <img src={p.image} alt="" className="h-full w-full object-contain p-8" loading="lazy" /> : null}
                 </div>
               </Link>
-              <div className="space-y-3 p-5">
+              <div className="flex flex-1 flex-col p-5">
                 <div className="text-xs font-semibold text-emerald-700">{p.category}</div>
                 <Link to={`/products/${p.slug}`} className="block">
-                  <div className="text-base font-semibold text-zinc-900 hover:underline">{p.name}</div>
+                  <div className="mt-3 text-base font-semibold text-zinc-900 hover:underline">{p.name}</div>
                 </Link>
                 <Link to={`/products/${p.slug}`} className="block">
-                  <div className="text-sm text-zinc-600">{p.desc}</div>
+                  <div className="mt-3 min-h-[3rem] text-sm text-zinc-600">{p.desc}</div>
                 </Link>
-                <div className="flex items-center justify-between gap-3">
+                <div className="mt-3 min-h-[1.25rem] flex items-center justify-between gap-3">
                   {typeof p.shop_stock_qty === "number" ? (
                     <div className="text-xs text-zinc-600">Stock: {p.shop_stock_qty}</div>
                   ) : (
                     <div className="text-xs text-zinc-600">Stock: —</div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  disabled={!p.hasStock}
-                  onClick={() => {
-                    addToCart(p.id, 1);
-                    setCartCount(loadCart().reduce((s, i) => s + (i.quantity || 0), 0));
-                  }}
-                  className="inline-flex w-full items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {p.hasStock ? "Add to cart" : "Out of stock"}
-                </button>
+                <div className="mt-auto pt-4">
+                  <button
+                    type="button"
+                    disabled={!p.hasStock}
+                    onClick={() => {
+                      addToCart(p.id, 1);
+                      setCartCount(loadCart().reduce((s, i) => s + (i.quantity || 0), 0));
+                    }}
+                    className="inline-flex w-full items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {p.hasStock ? "Add to cart" : "Out of stock"}
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
+
+        {totalPages > 1 ? (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage(safePage - 1)}
+              disabled={safePage <= 1}
+              className={classNames(
+                "inline-flex min-w-10 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition-colors",
+                safePage <= 1
+                  ? "cursor-not-allowed border-zinc-200 text-zinc-400"
+                  : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+              )}
+            >
+              Prev
+            </button>
+
+            {pageItems.map((item) =>
+              typeof item === "number" ? (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setPage(item)}
+                  className={classNames(
+                    "inline-flex min-w-10 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition-colors",
+                    item === safePage
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                  )}
+                >
+                  {item}
+                </button>
+              ) : (
+                <span key={item} className="inline-flex min-w-10 items-center justify-center px-1 text-sm text-zinc-400">
+                  ...
+                </span>
+              )
+            )}
+
+            <button
+              type="button"
+              onClick={() => setPage(safePage + 1)}
+              disabled={safePage >= totalPages}
+              className={classNames(
+                "inline-flex min-w-10 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition-colors",
+                safePage >= totalPages
+                  ? "cursor-not-allowed border-zinc-200 text-zinc-400"
+                  : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+              )}
+            >
+              Next
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
