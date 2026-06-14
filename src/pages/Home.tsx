@@ -274,11 +274,27 @@ export default function Home() {
                 <Link
                   key={p.slug}
                   to={`/products/${encodeURIComponent(p.slug)}`}
-                  className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50"
+                  className="group overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                 >
-                  <img src={p.imageUrl} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]" loading="lazy" />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/0 to-transparent p-3">
-                    <div className="truncate text-sm font-semibold text-white">{p.name}</div>
+                  <div className="aspect-[4/3] overflow-hidden bg-gradient-to-br from-zinc-50 via-white to-emerald-50/40">
+                    <img
+                      src={p.imageUrl}
+                      alt=""
+                      className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="border-t border-emerald-100 bg-gradient-to-r from-white via-emerald-50/70 to-cyan-50/70 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      <span className="h-px flex-1 bg-gradient-to-r from-emerald-300 via-cyan-200 to-transparent" />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-xs font-medium uppercase tracking-[0.28em] text-zinc-400">Featured</span>
+                      <span className="rounded-full border border-emerald-100 bg-white/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                        View
+                      </span>
+                    </div>
                   </div>
                 </Link>
               );
