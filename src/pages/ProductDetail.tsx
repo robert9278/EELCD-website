@@ -65,7 +65,7 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("details");
-  const [activeImageUrl, setActiveImageUrl] = useState<string>("");
+  const [activeMediaId, setActiveMediaId] = useState<string>("");
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerScale, setViewerScale] = useState(1);
   const [viewerOffset, setViewerOffset] = useState({ x: 0, y: 0 });
@@ -135,22 +135,37 @@ export default function ProductDetail() {
     })();
   }, [slug]);
 
-  const images = useMemo(() => {
-    const list = (item?.product_media ?? []).filter((m) => m.kind === "image" && (m.url ?? "").trim().length > 0);
+  const media = useMemo(() => {
+    const list = (item?.product_media ?? []).filter(
+      (m) => (m.kind === "image" || m.kind === "video") && (m.url ?? "").trim().length > 0
+    );
     list.sort((a, b) => (a.is_primary === b.is_primary ? a.sort_order - b.sort_order : a.is_primary ? -1 : 1));
     return list;
   }, [item]);
 
+  const activeMedia = useMemo(() => {
+    if (media.length === 0) return null;
+    return media.find((m) => m.id === activeMediaId) ?? media[0] ?? null;
+  }, [media, activeMediaId]);
+
   useEffect(() => {
-    setActiveImageUrl(images[0]?.url ?? "");
-  }, [images]);
+    if (media.length === 0) {
+      setActiveMediaId("");
+      return;
+    }
+    if (!activeMediaId || !media.some((m) => m.id === activeMediaId)) setActiveMediaId(media[0].id);
+  }, [media, activeMediaId]);
 
   useEffect(() => {
     setViewerScale(1);
     setViewerOffset({ x: 0, y: 0 });
     setViewerDragging(false);
     viewerDragStart.current = null;
-  }, [activeImageUrl, viewerOpen]);
+  }, [activeMedia?.id, viewerOpen]);
+
+  useEffect(() => {
+    if (viewerOpen && activeMedia?.kind !== "image") setViewerOpen(false);
+  }, [viewerOpen, activeMedia?.kind]);
 
   const pdfs = useMemo(() => {
     const list = (item?.product_attachments ?? []).filter((a) => a.kind === "pdf" && (a.url ?? "").trim().length > 0);
@@ -264,38 +279,41 @@ export default function ProductDetail() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => activeImageUrl && setViewerOpen(true)}
+                  onClick={() => (activeMedia?.kind === "image" ? setViewerOpen(true) : null)}
                   className="block w-full text-left"
                 >
                   <div className="aspect-[4/3] bg-zinc-50">
-                  {activeImageUrl ? (
-                    <img
-                      src={activeImageUrl}
-                      alt=""
-                      className="h-full w-full object-contain p-8"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-sm text-zinc-500">No image</div>
-                  )}
+                    {activeMedia?.url ? (
+                      activeMedia.kind === "video" ? (
+                        <video src={activeMedia.url} controls playsInline className="h-full w-full object-contain p-6" />
+                      ) : (
+                        <img src={activeMedia.url} alt="" className="h-full w-full object-contain p-8" loading="lazy" />
+                      )
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-sm text-zinc-500">No media</div>
+                    )}
                   </div>
                 </button>
               </div>
 
-              {images.length > 1 ? (
+              {media.length > 1 ? (
                 <div className="flex gap-2 overflow-x-auto pb-1">
-                  {images.map((img) => (
+                  {media.map((m) => (
                     <button
-                      key={img.id}
+                      key={m.id}
                       type="button"
-                      onClick={() => setActiveImageUrl(img.url)}
+                      onClick={() => setActiveMediaId(m.id)}
                       className={
-                        img.url === activeImageUrl
+                        m.id === activeMedia?.id
                           ? "h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-emerald-400 bg-white"
                           : "h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-zinc-200 bg-white hover:border-zinc-300"
                       }
                     >
-                      <img src={img.url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      {m.kind === "video" ? (
+                        <video src={m.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                      ) : (
+                        <img src={m.url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -497,9 +515,9 @@ export default function ProductDetail() {
               className={viewerScale > 1 ? "relative h-[70vh] touch-none bg-zinc-900/5" : "relative h-[70vh] bg-zinc-900/5"}
             >
               <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
-                {activeImageUrl ? (
+                {activeMedia?.kind === "image" && activeMedia.url ? (
                   <img
-                    src={activeImageUrl}
+                    src={activeMedia.url}
                     alt=""
                     draggable={false}
                     className={viewerScale > 1 ? "max-h-none max-w-none select-none" : "max-h-full max-w-full select-none"}

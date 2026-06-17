@@ -35,7 +35,7 @@ function detectKind(file: File): MediaKind {
 }
 
 function bucketFor(kind: MediaKind, target: "site" | "product") {
-  if (kind === "video") return "site-media";
+  if (kind === "video") return target === "product" ? "product-media" : "site-media";
   if (kind === "image") return target === "product" ? "product-media" : "site-media";
   return target === "product" ? "product-files" : "site-files";
 }

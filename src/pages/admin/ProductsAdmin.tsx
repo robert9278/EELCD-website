@@ -248,6 +248,7 @@ export default function ProductsAdmin() {
   const selectAllRef = useRef<HTMLInputElement | null>(null);
   const [mainPickerOpen, setMainPickerOpen] = useState(false);
   const [galleryPickerOpen, setGalleryPickerOpen] = useState(false);
+  const [galleryVideoPickerOpen, setGalleryVideoPickerOpen] = useState(false);
   const [pdfPickerOpen, setPdfPickerOpen] = useState(false);
   const [specTableAvailable, setSpecTableAvailable] = useState<"unknown" | "available" | "missing">("unknown");
 
@@ -256,14 +257,17 @@ export default function ProductsAdmin() {
   const allSelected = items.length > 0 && selectedCount === items.length;
   const someSelected = selectedCount > 0 && selectedCount < items.length;
 
-  const images = useMemo(() => {
-    const list = (active?.product_media ?? []).filter((m) => m.kind === "image" && (m.url ?? "").trim().length > 0);
+  const media = useMemo(() => {
+    const list = (active?.product_media ?? []).filter(
+      (m) => (m.kind === "image" || m.kind === "video") && (m.url ?? "").trim().length > 0
+    );
     list.sort((a, b) => (a.is_primary === b.is_primary ? a.sort_order - b.sort_order : a.is_primary ? -1 : 1));
     return list;
   }, [active]);
 
+  const images = useMemo(() => media.filter((m) => m.kind === "image"), [media]);
   const primaryImage = images.find((x) => x.is_primary) ?? images[0] ?? null;
-  const galleryImages = images.filter((x) => x.id !== primaryImage?.id);
+  const galleryMedia = useMemo(() => media.filter((x) => x.id !== primaryImage?.id), [media, primaryImage?.id]);
 
   const [slug, setSlug] = useState("");
   const [category, setCategory] = useState(categories[0] ?? "TFT");
@@ -710,6 +714,7 @@ export default function ProductsAdmin() {
       const maxSort = Math.max(0, ...(active?.product_media ?? []).map((m) => (Number.isFinite(m.sort_order) ? m.sort_order : 0)));
       let nextSort = maxSort + 1;
       for (const file of files) {
+        const kind = file.type.startsWith("video/") ? "video" : "image";
         const path = `products/${activeId}/${Date.now()}-${file.name}`;
         const uploaded = await supabase.storage.uploadPublic("product-media", path, file);
 
@@ -724,7 +729,7 @@ export default function ProductsAdmin() {
                 public_url: uploaded.publicUrl,
                 file_name: file.name,
                 mime_type: file.type || null,
-                kind: "image",
+                kind,
                 title: file.name,
                 description: null,
                 tags: [],
@@ -741,7 +746,7 @@ export default function ProductsAdmin() {
           body: JSON.stringify([
             {
               product_id: activeId,
-              kind: "image",
+              kind,
               url: uploaded.publicUrl,
               alt_i18n: { en: nameEn.trim(), zh: nameZh.trim() },
               sort_order: nextSort,
@@ -837,7 +842,7 @@ export default function ProductsAdmin() {
           body: JSON.stringify([
             {
               product_id: activeId,
-              kind: "image",
+              kind: asset.kind,
               url: asset.public_url,
               alt_i18n: { en: nameEn.trim(), zh: nameZh.trim() },
               sort_order: nextSort,
@@ -1968,13 +1973,13 @@ export default function ProductsAdmin() {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-zinc-900">Gallery images</div>
+                  <div className="text-sm font-semibold text-zinc-900">Gallery media</div>
                   <div className="flex gap-2">
                     <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
                       Upload gallery
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/*"
                         multiple
                         disabled={!activeId || busy}
                         onChange={(e) => {
@@ -1991,28 +1996,44 @@ export default function ProductsAdmin() {
                       disabled={!activeId || busy}
                       className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
                     >
-                      Choose from library
+                      Choose images
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGalleryVideoPickerOpen(true)}
+                      disabled={!activeId || busy}
+                      className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                    >
+                      Choose videos
                     </button>
                   </div>
                 </div>
 
-                {galleryImages.length === 0 ? <div className="text-sm text-zinc-600">No gallery images</div> : null}
-                {galleryImages.length > 0 ? (
+                {galleryMedia.length === 0 ? <div className="text-sm text-zinc-600">No gallery media</div> : null}
+                {galleryMedia.length > 0 ? (
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {galleryImages.map((m) => (
+                    {galleryMedia.map((m) => (
                       <div key={m.id} className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
                         <div className="aspect-square bg-zinc-50">
-                          <img src={m.url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          {m.kind === "video" ? (
+                            <video src={m.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                          ) : (
+                            <img src={m.url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          )}
                         </div>
                         <div className="flex items-center justify-between gap-2 p-2">
-                          <button
-                            type="button"
-                            onClick={() => void setAsMainImage(m.id)}
-                            disabled={busy}
-                            className="text-xs font-semibold text-emerald-700 hover:underline disabled:opacity-50"
-                          >
-                            Set as main
-                          </button>
+                          {m.kind === "image" ? (
+                            <button
+                              type="button"
+                              onClick={() => void setAsMainImage(m.id)}
+                              disabled={busy}
+                              className="text-xs font-semibold text-emerald-700 hover:underline disabled:opacity-50"
+                            >
+                              Set as main
+                            </button>
+                          ) : (
+                            <div className="text-xs font-semibold text-zinc-500">video</div>
+                          )}
                           <button
                             type="button"
                             onClick={() => void removeMedia(m.id)}
@@ -2101,6 +2122,18 @@ export default function ProductsAdmin() {
         title="Choose gallery images"
         onConfirm={(sel) => {
           setGalleryPickerOpen(false);
+          if (sel.length > 0) void addGalleryFromLibrary(sel);
+        }}
+      />
+
+      <MediaPicker
+        open={galleryVideoPickerOpen}
+        onClose={() => setGalleryVideoPickerOpen(false)}
+        kind="video"
+        multi
+        title="Choose gallery videos"
+        onConfirm={(sel) => {
+          setGalleryVideoPickerOpen(false);
           if (sel.length > 0) void addGalleryFromLibrary(sel);
         }}
       />
