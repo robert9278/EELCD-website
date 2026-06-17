@@ -282,10 +282,16 @@ export default function ProductDetail() {
                   onClick={() => (activeMedia?.kind === "image" ? setViewerOpen(true) : null)}
                   className="block w-full text-left"
                 >
-                  <div className="aspect-[4/3] bg-zinc-50">
+                  <div className="flex aspect-[4/3] items-center justify-center bg-white">
                     {activeMedia?.url ? (
                       activeMedia.kind === "video" ? (
-                        <video src={activeMedia.url} controls playsInline className="h-full w-full object-contain p-6" />
+                        <video
+                          src={activeMedia.url}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="max-h-full max-w-full bg-white"
+                        />
                       ) : (
                         <img src={activeMedia.url} alt="" className="h-full w-full object-contain p-8" loading="lazy" />
                       )
