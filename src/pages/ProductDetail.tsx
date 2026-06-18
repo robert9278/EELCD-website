@@ -66,6 +66,7 @@ export default function ProductDetail() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("details");
   const [activeMediaId, setActiveMediaId] = useState<string>("");
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerScale, setViewerScale] = useState(1);
   const [viewerOffset, setViewerOffset] = useState({ x: 0, y: 0 });
@@ -148,6 +149,9 @@ export default function ProductDetail() {
     return media.find((m) => m.id === activeMediaId) ?? media[0] ?? null;
   }, [media, activeMediaId]);
 
+  const imageMedia = useMemo(() => media.filter((m) => m.kind === "image"), [media]);
+  const videoCoverUrl = imageMedia[0]?.url ?? "";
+
   useEffect(() => {
     if (media.length === 0) {
       setActiveMediaId("");
@@ -155,6 +159,10 @@ export default function ProductDetail() {
     }
     if (!activeMediaId || !media.some((m) => m.id === activeMediaId)) setActiveMediaId(media[0].id);
   }, [media, activeMediaId]);
+
+  useEffect(() => {
+    setPlayingVideoId(null);
+  }, [activeMedia?.id]);
 
   useEffect(() => {
     setViewerScale(1);
@@ -277,29 +285,52 @@ export default function ProductDetail() {
                     {item.in_stock ? "In stock" : "Out of stock"}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => (activeMedia?.kind === "image" ? setViewerOpen(true) : null)}
-                  className="block w-full text-left"
-                >
-                  <div className="flex aspect-[4/3] items-center justify-center bg-white">
+                {activeMedia?.kind === "image" ? (
+                  <button type="button" onClick={() => setViewerOpen(true)} className="block w-full text-left">
+                    <div className="flex aspect-[4/3] items-center justify-center bg-white">
+                      {activeMedia?.url ? (
+                        <img src={activeMedia.url} alt="" className="h-full w-full object-contain p-8" loading="lazy" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-sm text-zinc-500">No media</div>
+                      )}
+                    </div>
+                  </button>
+                ) : (
+                  <div className="flex aspect-video items-center justify-center bg-zinc-950">
                     {activeMedia?.url ? (
-                      activeMedia.kind === "video" ? (
+                      playingVideoId === activeMedia.id ? (
                         <video
                           src={activeMedia.url}
                           controls
+                          autoPlay
                           playsInline
                           preload="metadata"
-                          className="max-h-full max-w-full bg-white"
+                          className="h-full w-full object-cover bg-black"
                         />
                       ) : (
-                        <img src={activeMedia.url} alt="" className="h-full w-full object-contain p-8" loading="lazy" />
+                        <button
+                          type="button"
+                          onClick={() => setPlayingVideoId(activeMedia.id)}
+                          className="relative flex h-full w-full items-center justify-center overflow-hidden bg-zinc-950"
+                        >
+                          {videoCoverUrl ? (
+                            <img src={videoCoverUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-sm text-zinc-300">
+                              Video preview
+                            </div>
+                          )}
+                          <span className="absolute inset-0 bg-black/20" />
+                          <span className="absolute inline-flex items-center rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-zinc-900 shadow">
+                            Play Video
+                          </span>
+                        </button>
                       )
                     ) : (
                       <div className="flex h-full items-center justify-center text-sm text-zinc-500">No media</div>
                     )}
                   </div>
-                </button>
+                )}
               </div>
 
               {media.length > 1 ? (
